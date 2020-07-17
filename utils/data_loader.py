@@ -183,9 +183,62 @@ def load_vocab(root):
     return vocab
 
 
+def load_and_process_data(data_dir, local_save=True, sample_min_num=300, clean=True, use_jieba=True):
+    """
 
+    :param data_dir: Local path which contains raw data
+    :param local_save: Whether to save processed data in local storage
+    :return: A DataFrame contains processed data
+    """
+    subjects = ['地理', '历史', '生物', '政治']
+    # subjects = ['历史']
 
+    processed_data = None
+    for subject in subjects:
+        subject_dir = os.path.join(data_dir, '高中_{}'.format(subject))
+        file_names = [f for f in os.listdir(subject_dir) if os.path.isfile(os.path.join(subject_dir, f))]
+        for file_name in file_names:
+            cur_processed_data = pd.DataFrame(columns=['id', 'item', 'subject', 'category', 'knowledge'])
+            print('Start process {}'.format(os.path.join(subject_dir, file_name)))
+            cur_raw_data = pd.read_csv(os.path.join(subject_dir, file_name), encoding='utf-8')
+            cur_processed_data = cur_raw_data.apply(lambda x: data_loader_helper(x, clean=clean, use_jieba=use_jieba),
+                                                    axis=1)
+            cur_processed_data['id'] = cur_raw_data['web-scraper-order']
+            cur_processed_data['subject'] = subject
+            cur_processed_data['category'] = file_name.split('.')[0]
 
+            if processed_data is None:
+                processed_data = cur_processed_data
+            else:
+                processed_data = pd.concat([processed_data, cur_processed_data])
+
+    appear_dict = dict()
+    for knowledges in processed_data['knowledge']:
+        for knowledge in knowledges:
+            if knowledge in appear_dict.keys():
+                appear_dict[knowledge] = appear_dict[knowledge] + 1
+            else:
+                appear_dict[knowledge] = 1
+
+    processed_data['knowledge'] = processed_data['knowledge'].apply(
+        lambda x: [k for k in x if appear_dict[k] >= sample_min_num])
+    processed_data['knowledge'] = processed_data['knowledge'].apply(lambda x: ' '.join(x) if len(x) > 0 else np.nan)
+    processed_data['labels'] = processed_data.apply(lambda x:
+                                                    ' '.join(
+                                                        [x['subject'], x['category'], x['knowledge']]) if not pd.isnull(
+                                                        x['knowledge'])
+                                                    else ' '.join([x['subject'], x['category']]), axis=1)
+
+    if local_save:
+        saved_path = 'data/total_processed_data.csv'
+        processed_data.to_csv(saved_path, index=False, encoding='utf-8')
+    return processed_data
+
+def data_loader_helper(xdat, clean=True, use_jieba=True):
+    knowledge, item = process_text(xdat['item'], clean=clean, use_jieba=use_jieba)
+    xdat['knowledge'] = knowledge
+    xdat['processed_item'] = item
+    return xdat[['processed_item', 'knowledge']]
 
 
 
