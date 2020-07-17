@@ -1,4 +1,3 @@
-import sys
 import os
 import pandas as pd
 from utils.data_loader import load_and_process_data
@@ -7,7 +6,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from models.naive_bayes import MultinomialNaiveBayes
-from gensim.corpora.dictionary import Dictionary
 from models.Fasttext import FastText
 from models.TextCNN import TextCNN
 from sklearn.metrics.classification import precision_score, recall_score, f1_score, classification_report
